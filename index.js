@@ -288,3 +288,14 @@ client.on("raw", (d) => {
 });
 
 client.login(config.botToken);
+// Keep-alive server for uptime monitoring
+const express = require('express');
+const app = express();
+
+// Respond to pings
+app.get('/', (req, res) => res.send('Bot is running!'));
+
+// Use the Render-provided port or 3000
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Keep-alive server running on port ${PORT}`));
+
