@@ -72,10 +72,10 @@ client.on("messageCreate", async (message) => {
 
     switch (command) {
 
-        // ===================== NEW: HELP COMMAND =====================
+        // ===================== HELP COMMAND =====================
         case "help": {
             const embed = new EmbedBuilder()
-                .setColor('#00FFFF') // cyan
+                .setColor('#00FFFF')
                 .setTitle('Music Bot by WOTAX - Commands')
                 .setDescription(commands.map(cmd => `🎵 \`${cmd.name}\` - ${cmd.description}`).join('\n\n'))
                 .setImage('https://i.imgur.com/xzUP5cS.gif')
@@ -84,19 +84,23 @@ client.on("messageCreate", async (message) => {
 
             return message.channel.send({ embeds: [embed] });
         }
-        // ================================================================
+        // ========================================================
 
         case "play": {
             const query = args.join(" ");
             if (!query) return messages.error(message.channel, "Please provide a search query!");
 
             try {
-                const player = client.riffy.createConnection({
-                    guildId: message.guild.id,
-                    voiceChannel: message.member.voice.channel.id,
-                    textChannel: message.channel.id,
-                    deaf: true,
-                });
+                // Use existing player or create a new one
+                let player = client.riffy.players.get(message.guild.id);
+                if (!player) {
+                    player = client.riffy.createConnection({
+                        guildId: message.guild.id,
+                        voiceChannel: message.member.voice.channel.id,
+                        textChannel: message.channel.id,
+                        deaf: true,
+                    });
+                }
 
                 const resolve = await client.riffy.resolve({
                     query: query,
@@ -112,7 +116,7 @@ client.on("messageCreate", async (message) => {
                     }
 
                     messages.addedPlaylist(message.channel, playlistInfo, tracks);
-                    if (!player.playing && !player.paused) return player.play();
+                    if (!player.playing && !player.paused) player.play();
                 } else if (loadType === "search" || loadType === "track") {
                     const track = tracks.shift();
                     track.info.requester = message.author;
@@ -120,7 +124,7 @@ client.on("messageCreate", async (message) => {
                     player.queue.add(track);
                     
                     messages.addedToQueue(message.channel, track, position);
-                    if (!player.playing && !player.paused) return player.play();
+                    if (!player.playing && !player.paused) player.play();
                 } else {
                     return messages.error(message.channel, "No results found! Try with a different search term.");
                 }
@@ -220,7 +224,7 @@ client.on("messageCreate", async (message) => {
             const player = client.riffy.players.get(message.guild.id);
             if (!player) return messages.error(message.channel, "Nothing is playing!");
 
-            // Get the current loop mode and toggle between NONE and QUEUE
+            // Toggle loop mode
             const currentMode = player.loop;
             const newMode = currentMode === "none" ? "queue" : "none";
             
@@ -278,8 +282,8 @@ client.riffy.on("trackStart", async (player, track) => {
 
 client.riffy.on("queueEnd", async (player) => {
     const channel = client.channels.cache.get(player.textChannel);
-    player.destroy();
     messages.queueEnded(channel);
+    // Do not destroy the player, so bot can continue working immediately
 });
 
 client.on("raw", (d) => {
@@ -288,14 +292,11 @@ client.on("raw", (d) => {
 });
 
 client.login(config.botToken);
+
 // Keep-alive server for uptime monitoring
 const express = require('express');
 const app = express();
 
-// Respond to pings
 app.get('/', (req, res) => res.send('Bot is running!'));
-
-// Use the Render-provided port or 3000
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Keep-alive server running on port ${PORT}`));
-
